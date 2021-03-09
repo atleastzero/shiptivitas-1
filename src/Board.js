@@ -13,13 +13,22 @@ export default class Board extends React.Component {
         backlog: clients.filter(client => !client.status || client.status === 'backlog'),
         inProgress: clients.filter(client => client.status && client.status === 'in-progress'),
         complete: clients.filter(client => client.status && client.status === 'complete'),
-      }
-    }
+      },
+    };
+    this.drake = Dragula({
+      isContainer: function (el) {
+        return el.classList.contains('Swimlane-dragColumn');
+      },
+      moves: function (el, source, handle, sibling) {
+        return true;
+      },
+    });
     this.swimlanes = {
       backlog: React.createRef(),
       inProgress: React.createRef(),
       complete: React.createRef(),
-    }
+    };
+    this.setupOnDrop();
   }
   getClients() {
     return [
@@ -50,25 +59,89 @@ export default class Board extends React.Component {
       status: companyDetails[3],
     }));
   }
-  renderSwimlane(name, clients, ref) {
+  setupOnDrop() {
+    this.drake.on('drop', (el, target, source, sibling) => {
+      console.log("drops")
+      let newBacklog = this.state.clients.backlog;
+      let newInProgress = this.state.clients.inProgress;
+      let newComplete = this.state.clients.complete;
+
+      let elementInfo;
+
+      if (source.getAttribute('status') === 'backlog') {
+        if (target.getAttribute('status') === 'backlog') {
+          return true;
+        }
+        elementInfo = this.state.clients.backlog.filter(item =>
+          item.id === el.getAttribute("data-id")
+        )[0];
+        newBacklog = this.state.clients.backlog.filter(item =>
+          item.id !== el.getAttribute("data-id")
+        );
+      } else if (source.getAttribute('status') === 'in-progress') {
+        if (target.getAttribute('status') === 'in-progress') {
+          return true;
+        }
+        elementInfo = this.state.clients.inProgress.filter(item =>
+          item.id === el.getAttribute("data-id")
+        )[0];
+        newInProgress = this.state.clients.inProgress.filter(item =>
+          item.id !== el.getAttribute("data-id")
+        );
+      } else if (source.getAttribute('status') === 'complete') {
+        if (target.getAttribute('status') === 'complete') {
+          return true;
+        }
+        elementInfo = this.state.clients.complete.filter(item =>
+          item.id === el.getAttribute("data-id")
+        )[0];
+        newComplete = this.state.clients.complete.filter(item =>
+          item.id !== el.getAttribute("data-id")
+        );
+      }
+
+      elementInfo.status = target.getAttribute('status');
+
+      if (target.getAttribute('status') === 'backlog') {
+        el.className = "Card Card-grey";
+        newBacklog = [...this.state.clients.backlog.slice(0, sibling.getAttribute('index')), elementInfo, ...this.state.clients.backlog.slice(sibling.getAttribute('index'))];
+      } else if (target.getAttribute('status') === 'in-progress') {
+        el.className = "Card Card-blue";
+        newInProgress = [...this.state.clients.inProgress.slice(0, sibling.getAttribute('index')), elementInfo, ...this.state.clients.inProgress.slice(sibling.getAttribute('index'))];
+      } else if (target.getAttribute('status') === 'complete') {
+        el.className = "Card Card-green";
+        newComplete = [...this.state.clients.complete.slice(0, sibling.getAttribute('index')), elementInfo, ...this.state.clients.complete.slice(sibling.getAttribute('index'))];
+      }
+
+      this.drake.cancel(true);
+
+      this.setState({
+        clients: {
+          backlog: newBacklog,
+          inProgress: newInProgress,
+          complete: newComplete,
+        },
+      });
+    });
+  }
+  renderSwimlane(name, status, clients, ref) {
     return (
-      <Swimlane name={name} clients={clients} dragulaRef={ref}/>
+      <Swimlane name={name} status={status} clients={clients} dragulaRef={ref}/>
     );
   }
-
   render() {
     return (
       <div className="Board">
         <div className="container-fluid">
           <div className="row">
             <div className="col-md-4">
-              {this.renderSwimlane('Backlog', this.state.clients.backlog, this.swimlanes.backlog)}
+              {this.renderSwimlane('Backlog', 'backlog', this.state.clients.backlog, this.swimlanes.backlog)}
             </div>
             <div className="col-md-4">
-              {this.renderSwimlane('In Progress', this.state.clients.inProgress, this.swimlanes.inProgress)}
+              {this.renderSwimlane('In Progress', 'in-progress', this.state.clients.inProgress, this.swimlanes.inProgress)}
             </div>
             <div className="col-md-4">
-              {this.renderSwimlane('Complete', this.state.clients.complete, this.swimlanes.complete)}
+              {this.renderSwimlane('Complete', 'complete', this.state.clients.complete, this.swimlanes.complete)}
             </div>
           </div>
         </div>

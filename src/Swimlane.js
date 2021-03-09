@@ -4,7 +4,7 @@ import './Swimlane.css';
 
 export default class Swimlane extends React.Component {
   render() {
-    const cards = this.props.clients.map(client => {
+    const cards = this.props.clients.map((client, index) => {
       return (
         <Card
           key={client.id}
@@ -12,13 +12,14 @@ export default class Swimlane extends React.Component {
           name={client.name}
           description={client.description}
           status={client.status}
+          index={index}
         />
       );
     })
     return (
       <div className="Swimlane-column">
         <div className="Swimlane-title">{this.props.name}</div>
-        <div className="Swimlane-dragColumn" ref={this.props.dragulaRef}>
+        <div className="Swimlane-dragColumn" status={this.props.status} ref={this.props.dragulaRef}>
           {cards}
         </div>
       </div>);
