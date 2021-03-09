@@ -1,0 +1,191 @@
+diff --git a/src/Board.js b/src/Board.js
+index 1f00045..42ec2ed 100644
+--- a/src/Board.js
++++ b/src/Board.js
+@@ -13,13 +13,22 @@ export default class Board extends React.Component {
+         backlog: clients.filter(client => !client.status || client.status === 'backlog'),
+         inProgress: clients.filter(client => client.status && client.status === 'in-progress'),
+         complete: clients.filter(client => client.status && client.status === 'complete'),
+-      }
+-    }
++      },
++    };
++    this.drake = Dragula({
++      isContainer: function (el) {
++        return el.classList.contains('Swimlane-dragColumn');
++      },
++      moves: function (el, source, handle, sibling) {
++        return true;
++      },
++    });
+     this.swimlanes = {
+       backlog: React.createRef(),
+       inProgress: React.createRef(),
+       complete: React.createRef(),
+-    }
++    };
++    this.setupOnDrop();
+   }
+   getClients() {
+     return [
+@@ -50,25 +59,89 @@ export default class Board extends React.Component {
+       status: companyDetails[3],
+     }));
+   }
+-  renderSwimlane(name, clients, ref) {
++  setupOnDrop() {
++    this.drake.on('drop', (el, target, source, sibling) => {
++      console.log("drops")
++      let newBacklog = this.state.clients.backlog;
++      let newInProgress = this.state.clients.inProgress;
++      let newComplete = this.state.clients.complete;
++
++      let elementInfo;
++
++      if (source.getAttribute('status') === 'backlog') {
++        if (target.getAttribute('status') === 'backlog') {
++          return true;
++        }
++        elementInfo = this.state.clients.backlog.filter(item =>
++          item.id === el.getAttribute("data-id")
++        )[0];
++        newBacklog = this.state.clients.backlog.filter(item =>
++          item.id !== el.getAttribute("data-id")
++        );
++      } else if (source.getAttribute('status') === 'in-progress') {
++        if (target.getAttribute('status') === 'in-progress') {
++          return true;
++        }
++        elementInfo = this.state.clients.inProgress.filter(item =>
++          item.id === el.getAttribute("data-id")
++        )[0];
++        newInProgress = this.state.clients.inProgress.filter(item =>
++          item.id !== el.getAttribute("data-id")
++        );
++      } else if (source.getAttribute('status') === 'complete') {
++        if (target.getAttribute('status') === 'complete') {
++          return true;
++        }
++        elementInfo = this.state.clients.complete.filter(item =>
++          item.id === el.getAttribute("data-id")
++        )[0];
++        newComplete = this.state.clients.complete.filter(item =>
++          item.id !== el.getAttribute("data-id")
++        );
++      }
++
++      elementInfo.status = target.getAttribute('status');
++
++      if (target.getAttribute('status') === 'backlog') {
++        el.className = "Card Card-grey";
++        newBacklog = [...this.state.clients.backlog.slice(0, sibling.getAttribute('index')), elementInfo, ...this.state.clients.backlog.slice(sibling.getAttribute('index'))];
++      } else if (target.getAttribute('status') === 'in-progress') {
++        el.className = "Card Card-blue";
++        newInProgress = [...this.state.clients.inProgress.slice(0, sibling.getAttribute('index')), elementInfo, ...this.state.clients.inProgress.slice(sibling.getAttribute('index'))];
++      } else if (target.getAttribute('status') === 'complete') {
++        el.className = "Card Card-green";
++        newComplete = [...this.state.clients.complete.slice(0, sibling.getAttribute('index')), elementInfo, ...this.state.clients.complete.slice(sibling.getAttribute('index'))];
++      }
++
++      this.drake.cancel(true);
++
++      this.setState({
++        clients: {
++          backlog: newBacklog,
++          inProgress: newInProgress,
++          complete: newComplete,
++        },
++      });
++    });
++  }
++  renderSwimlane(name, status, clients, ref) {
+     return (
+-      <Swimlane name={name} clients={clients} dragulaRef={ref}/>
++      <Swimlane name={name} status={status} clients={clients} dragulaRef={ref}/>
+     );
+   }
+-
+   render() {
+     return (
+       <div className="Board">
+         <div className="container-fluid">
+           <div className="row">
+             <div className="col-md-4">
+-              {this.renderSwimlane('Backlog', this.state.clients.backlog, this.swimlanes.backlog)}
++              {this.renderSwimlane('Backlog', 'backlog', this.state.clients.backlog, this.swimlanes.backlog)}
+             </div>
+             <div className="col-md-4">
+-              {this.renderSwimlane('In Progress', this.state.clients.inProgress, this.swimlanes.inProgress)}
++              {this.renderSwimlane('In Progress', 'in-progress', this.state.clients.inProgress, this.swimlanes.inProgress)}
+             </div>
+             <div className="col-md-4">
+-              {this.renderSwimlane('Complete', this.state.clients.complete, this.swimlanes.complete)}
++              {this.renderSwimlane('Complete', 'complete', this.state.clients.complete, this.swimlanes.complete)}
+             </div>
+           </div>
+         </div>
+diff --git a/src/Card.js b/src/Card.js
+index a8ad663..4273f34 100644
+--- a/src/Card.js
++++ b/src/Card.js
+@@ -2,17 +2,26 @@ import React from 'react';
+ import './Card.css';
+ 
+ export default class Card extends React.Component {
+-  render() {
++  constructor(props) {
++    super(props)
++    this.state = {
++      status: this.props.status,
++    }
++  }
++  getClasses() {
+     let className = ['Card'];
+-    if (this.props.status === 'backlog') {
++    if (this.state.status === 'backlog') {
+       className.push('Card-grey');
+-    } else if (this.props.status === 'in-progress') {
++    } else if (this.state.status === 'in-progress') {
+       className.push('Card-blue');
+-    } else if (this.props.status === 'complete') {
++    } else if (this.state.status === 'complete') {
+       className.push('Card-green');
+     }
++    return className.join(' ')
++  }
++  render() {
+     return (
+-      <div className={className.join(' ')} data-id={this.props.id} data-status={this.props.status}>
++      <div index={this.props.index} className={this.getClasses()} data-id={this.props.id} data-status={this.state.status}>
+         <div className="Card-title">{this.props.name}</div>
+       </div>
+     );
+diff --git a/src/Swimlane.js b/src/Swimlane.js
+index 7e6e0d0..42a71f9 100644
+--- a/src/Swimlane.js
++++ b/src/Swimlane.js
+@@ -4,7 +4,7 @@ import './Swimlane.css';
+ 
+ export default class Swimlane extends React.Component {
+   render() {
+-    const cards = this.props.clients.map(client => {
++    const cards = this.props.clients.map((client, index) => {
+       return (
+         <Card
+           key={client.id}
+@@ -12,13 +12,14 @@ export default class Swimlane extends React.Component {
+           name={client.name}
+           description={client.description}
+           status={client.status}
++          index={index}
+         />
+       );
+     })
+     return (
+       <div className="Swimlane-column">
+         <div className="Swimlane-title">{this.props.name}</div>
+-        <div className="Swimlane-dragColumn" ref={this.props.dragulaRef}>
++        <div className="Swimlane-dragColumn" status={this.props.status} ref={this.props.dragulaRef}>
+           {cards}
+         </div>
+       </div>);
