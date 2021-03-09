@@ -61,7 +61,6 @@ export default class Board extends React.Component {
   }
   setupOnDrop() {
     this.drake.on('drop', (el, target, source, sibling) => {
-      console.log("drops")
       let newBacklog = this.state.clients.backlog;
       let newInProgress = this.state.clients.inProgress;
       let newComplete = this.state.clients.complete;
